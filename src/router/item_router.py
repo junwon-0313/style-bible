@@ -131,6 +131,219 @@ def show_journey_images(
         "is_last": is_last,
     }
 
+@router.get("/journey/men")
+def show_journey_images(
+    background_tasks: BackgroundTasks,
+    page_size: Annotated[int, Query()],
+    offset: Annotated[int, Query()],
+    user_id: Annotated[int | None, Cookie()] = None,
+    session_id: Annotated[str | None, Cookie()] = None,
+    db: Session = Depends(get_db),
+    bucket: Annotated[str | None, Cookie()] = None,
+    rec_type: str = "mab",
+) -> dict:
+    if bucket:
+        rec_type = bucket
+    if rec_type not in ["content", "mab"]:
+        rec_type = "mab"
+    # 유저가 좋아요 누른 전체 이미지 목록
+    # 비회원일때
+    if user_id is None and session_id is not None:
+        likes = (
+            db.query(Like)
+            .filter(
+                Like.session_id == session_id,
+                Like.user_id.is_(None),
+                Like.is_deleted == bool(False),
+            )
+            .all()
+        )
+    # 회원일때
+    else:
+        likes = (
+            db.query(Like)
+            .filter(
+                Like.user_id == user_id,
+                Like.is_deleted == bool(False),
+            )
+            .all()
+        )
+    # mab 추천에 사용하지 않더라도 알파 베타 일단 업데이트
+    mab_model = get_mab_model(user_id, session_id, db)
+    # like 개수가 적으면 일단 content based
+    if rec_type == "content" or len(likes) < 4:
+        outfits = get_recommendation(
+            db=db, likes=likes, total_rec_cnt=page_size, rec_type="rec"
+        )
+    else:
+        cand_outfits = get_recommendation(
+            db=db,
+            likes=likes,
+            total_rec_cnt=page_size * 10,
+            rec_type="cand",
+            cat_rec_cnt=page_size * 5,
+            sim_rec_cnt=page_size * 5,
+        )
+
+        cand_id_list = [
+            int(elem)
+            for elem in list(set([outfit.outfit_id for outfit in cand_outfits]))
+        ]
+
+        outfits = get_mab_recommendation(
+            mab_model, user_id, session_id, db, cand_id_list, page_size
+        )
+
+    # 마지막 페이지인지 확인
+    is_last = len(outfits) < page_size
+
+    # 유저가 좋아요 누른 이미지의 id 집합 생성
+    likes_set = {like.outfit_id for like in likes}
+
+    outfits_list = [
+        OutfitOut(**outfit.__dict__, is_liked=outfit.outfit_id in likes_set)
+        for outfit in outfits
+        if outfit.gender == "M"  # Gender 값이 "M"인 outfit만 필터링합니다.
+    ]
+
+    background_tasks.add_task(
+        update_last_action_time, user_id=user_id, session_id=session_id, db=db
+    )
+
+    background_tasks.add_task(
+        log_view_image,
+        user_id=user_id,
+        session_id=session_id,
+        outfits_list=outfits_list,
+        view_type="journey",
+        bucket=bucket,
+    )
+
+    background_tasks.add_task(
+        update_ab,
+        user_id=user_id,
+        session_id=session_id,
+        db=db,
+        outfit_id_list=[outfit.outfit_id for outfit in outfits_list],
+        reward_list=[0 for _ in range(page_size)],
+        interaction_type="view_journey",
+    )
+
+    return {
+        "ok": True,
+        "outfits_list": outfits_list,
+        "page_size": page_size,
+        "offset": offset,
+        "is_last": is_last,
+    }
+    
+@router.get("/journey/women")
+def show_journey_images(
+    background_tasks: BackgroundTasks,
+    page_size: Annotated[int, Query()],
+    offset: Annotated[int, Query()],
+    user_id: Annotated[int | None, Cookie()] = None,
+    session_id: Annotated[str | None, Cookie()] = None,
+    db: Session = Depends(get_db),
+    bucket: Annotated[str | None, Cookie()] = None,
+    rec_type: str = "mab",
+) -> dict:
+    if bucket:
+        rec_type = bucket
+    if rec_type not in ["content", "mab"]:
+        rec_type = "mab"
+    # 유저가 좋아요 누른 전체 이미지 목록
+    # 비회원일때
+    if user_id is None and session_id is not None:
+        likes = (
+            db.query(Like)
+            .filter(
+                Like.session_id == session_id,
+                Like.user_id.is_(None),
+                Like.is_deleted == bool(False),
+            )
+            .all()
+        )
+    # 회원일때
+    else:
+        likes = (
+            db.query(Like)
+            .filter(
+                Like.user_id == user_id,
+                Like.is_deleted == bool(False),
+            )
+            .all()
+        )
+    # mab 추천에 사용하지 않더라도 알파 베타 일단 업데이트
+    mab_model = get_mab_model(user_id, session_id, db)
+    # like 개수가 적으면 일단 content based
+    if rec_type == "content" or len(likes) < 4:
+        outfits = get_recommendation(
+            db=db, likes=likes, total_rec_cnt=page_size, rec_type="rec"
+        )
+    else:
+        cand_outfits = get_recommendation(
+            db=db,
+            likes=likes,
+            total_rec_cnt=page_size * 10,
+            rec_type="cand",
+            cat_rec_cnt=page_size * 5,
+            sim_rec_cnt=page_size * 5,
+        )
+
+        cand_id_list = [
+            int(elem)
+            for elem in list(set([outfit.outfit_id for outfit in cand_outfits]))
+        ]
+
+        outfits = get_mab_recommendation(
+            mab_model, user_id, session_id, db, cand_id_list, page_size
+        )
+
+    # 마지막 페이지인지 확인
+    is_last = len(outfits) < page_size
+
+    # 유저가 좋아요 누른 이미지의 id 집합 생성
+    likes_set = {like.outfit_id for like in likes}
+
+    outfits_list = [
+        OutfitOut(**outfit.__dict__, is_liked=outfit.outfit_id in likes_set)
+        for outfit in outfits
+        if outfit.gender == "F"  # Gender 값이 "M"인 outfit만 필터링합니다.
+    ]
+
+    background_tasks.add_task(
+        update_last_action_time, user_id=user_id, session_id=session_id, db=db
+    )
+
+    background_tasks.add_task(
+        log_view_image,
+        user_id=user_id,
+        session_id=session_id,
+        outfits_list=outfits_list,
+        view_type="journey",
+        bucket=bucket,
+    )
+
+    background_tasks.add_task(
+        update_ab,
+        user_id=user_id,
+        session_id=session_id,
+        db=db,
+        outfit_id_list=[outfit.outfit_id for outfit in outfits_list],
+        reward_list=[0 for _ in range(page_size)],
+        interaction_type="view_journey",
+    )
+
+    return {
+        "ok": True,
+        "outfits_list": outfits_list,
+        "page_size": page_size,
+        "offset": offset,
+        "is_last": is_last,
+    }
+    
+
 
 @router.get("/collection")
 def show_collection_images(
