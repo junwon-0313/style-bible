@@ -53,8 +53,7 @@ const getMenOutfitsFromCache = () => {
 
 function resetMenOutfitsCache() {
   sessionStorage.removeItem("MenOutfitsCache");
-  window.location.reload();
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  // window.location.reload();
 }
 
 const saveWomenOutfitsToCache = (data) => {
@@ -68,8 +67,7 @@ const getWomenOutfitsFromCache = () => {
 
 function resetWomenOutfitsCache() {
   sessionStorage.removeItem("WomenOutfitsCache");
-  window.location.reload();
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  // window.location.reload();
 }
 
 const JourneyGridView = ({ view }) => {
@@ -156,12 +154,12 @@ const JourneyGridView = ({ view }) => {
     try {
       setIsLoading(true);
       await new Promise((resolve) => setTimeout(resolve, 500));
-      // const viewUrl = view === "men" ? "/items/journey/men" : "/items/journey/women";
+      const viewUrl = view === "men" ? "/items/journey/men" : "/items/journey/women";
       const viewParams = new URLSearchParams({
         page_size: PAGE_SIZE.toString(),
         offset: (currentPage * PAGE_SIZE).toString(),
       });
-      const response = await styleAxios.get(`/items/journey?${viewParams.toString()}`);
+      const response = await styleAxios.get(`${viewUrl}?${viewParams.toString()}`);
 
       const { outfits_list: outfitsList, is_last: isLast } = response.data;
       const newData = outfitsList
