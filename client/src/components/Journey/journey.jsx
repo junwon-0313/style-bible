@@ -79,6 +79,24 @@ const JourneyGridView = ({ view }) => {
   const [isFetchStopped, setIsFetchStopped] = useState(false);
   const navigate = useNavigate();
   const clickType = view === "men" ? "men" : "women";
+  const [menScrollPosition, setMenScrollPosition] = useState(0);
+  const [womenScrollPosition, setWomenScrollPosition] = useState(0);
+
+  const saveScrollPosition = () => {
+    if (view === "men") {
+      setMenScrollPosition(window.scrollY);
+    } else if (view === "women") {
+      setWomenScrollPosition(window.scrollY);
+    }
+  };
+
+  const restoreScrollPosition = () => {
+    if (view === "men") {
+      window.scrollTo({ top: menScrollPosition, behavior: "smooth" });
+    } else if (view === "women") {
+      window.scrollTo({ top: womenScrollPosition, behavior: "smooth" });
+    }
+  };
 
   const popuptext = (
     <>
@@ -91,12 +109,16 @@ const JourneyGridView = ({ view }) => {
 
   useEffect(() => {
     totalPage.current = 100;
+    return () => {
+      saveScrollPosition();
+    };
   }, []);
 
+
   useEffect(() => {
+    restoreScrollPosition();
     const cachedMenOutfits = getMenOutfitsFromCache();
     const cachedWomenOutfits = getWomenOutfitsFromCache();
-
     if (view === "men" && cachedMenOutfits.length > 0) {
       setOutfits(cachedMenOutfits);
       setCurrentPage(Math.floor(cachedMenOutfits.length / PAGE_SIZE));
@@ -131,6 +153,7 @@ const JourneyGridView = ({ view }) => {
     }
     return () => {
       observer.disconnect();
+      saveScrollPosition();
     };
   }, [isLoading, isFetchStopped, currentPage]);
 
@@ -208,7 +231,6 @@ const JourneyGridView = ({ view }) => {
   }
 
   const goToDetailPage = (front_outfit_id) => {
-    window.scrollTo({ top: 0, behavior: "instant" });
     navigate(`/detail/${front_outfit_id}`);
   };
 
