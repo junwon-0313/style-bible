@@ -79,24 +79,29 @@ const JourneyGridView = ({ view }) => {
   const [isFetchStopped, setIsFetchStopped] = useState(false);
   const navigate = useNavigate();
   const clickType = view === "men" ? "men" : "women";
-  const [menScrollPosition, setMenScrollPosition] = useState(0);
-  const [womenScrollPosition, setWomenScrollPosition] = useState(0);
 
   const saveScrollPosition = () => {
     if (view === "men") {
-      setMenScrollPosition(window.scrollY);
+      sessionStorage.setItem("JourneyMenScroll", JSON.stringify(window.scrollY));
     } else if (view === "women") {
-      setWomenScrollPosition(window.scrollY);
+      sessionStorage.setItem("JourneyWomenScroll", JSON.stringify(window.scrollY));
     }
   };
+  
+const restoreScrollPosition = () => {
+  let cacheScroll;
+  if (view === "men") {
+    cacheScroll = sessionStorage.getItem("JourneyMenScroll");
+    sessionStorage.removeItem("JourneyMenScroll");
+  } else if (view === "women") {
+    cacheScroll = sessionStorage.getItem("JourneyWomenScroll");
+    sessionStorage.removeItem("JourneyWomenScroll");
+  }
 
-  const restoreScrollPosition = () => {
-    if (view === "men") {
-      window.scrollTo({ top: menScrollPosition, behavior: "smooth" });
-    } else if (view === "women") {
-      window.scrollTo({ top: womenScrollPosition, behavior: "smooth" });
-    }
-  };
+  const scrollPosition = cacheScroll ? JSON.parse(cacheScroll) : 0;
+  console.log('IN',scrollPosition);
+  window.scrollTo({ top: scrollPosition, behavior: "smooth" });
+};
 
   const popuptext = (
     <>
@@ -109,14 +114,9 @@ const JourneyGridView = ({ view }) => {
 
   useEffect(() => {
     totalPage.current = 100;
-    return () => {
-      saveScrollPosition();
-    };
   }, []);
 
-
   useEffect(() => {
-    restoreScrollPosition();
     const cachedMenOutfits = getMenOutfitsFromCache();
     const cachedWomenOutfits = getWomenOutfitsFromCache();
     if (view === "men" && cachedMenOutfits.length > 0) {
@@ -126,7 +126,21 @@ const JourneyGridView = ({ view }) => {
       setOutfits(cachedWomenOutfits);
       setCurrentPage(Math.floor(cachedWomenOutfits.length / PAGE_SIZE));
     }
+    restoreScrollPosition();
   }, [view]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      saveScrollPosition();
+    };
+  
+    window.addEventListener("scroll", handleScroll);
+  
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [view]);
+  
 
   useEffect(() => {
     let observer;
@@ -153,7 +167,6 @@ const JourneyGridView = ({ view }) => {
     }
     return () => {
       observer.disconnect();
-      saveScrollPosition();
     };
   }, [isLoading, isFetchStopped, currentPage]);
 
