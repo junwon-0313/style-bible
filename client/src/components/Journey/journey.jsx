@@ -9,7 +9,7 @@ import HeartButton from "../../components/HeartButton";
 import Information from "../information/information";
 import { HeartFilled } from "@ant-design/icons";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 
 const S = {
   GridWrapper: styled.div`
@@ -97,9 +97,8 @@ const restoreScrollPosition = () => {
     cacheScroll = sessionStorage.getItem("JourneyWomenScroll");
     sessionStorage.removeItem("JourneyWomenScroll");
   }
-
   const scrollPosition = cacheScroll ? JSON.parse(cacheScroll) : 0;
-  console.log('IN',scrollPosition);
+  console.log('restore', scrollPosition, view);
   window.scrollTo({ top: scrollPosition, behavior: "smooth" });
 };
 
@@ -117,6 +116,8 @@ const restoreScrollPosition = () => {
   }, []);
 
   useEffect(() => {
+    console.log('view', view);
+    restoreScrollPosition();
     const cachedMenOutfits = getMenOutfitsFromCache();
     const cachedWomenOutfits = getWomenOutfitsFromCache();
     if (view === "men" && cachedMenOutfits.length > 0) {
@@ -126,7 +127,6 @@ const restoreScrollPosition = () => {
       setOutfits(cachedWomenOutfits);
       setCurrentPage(Math.floor(cachedWomenOutfits.length / PAGE_SIZE));
     }
-    restoreScrollPosition();
   }, [view]);
 
   useEffect(() => {
@@ -211,8 +211,10 @@ const restoreScrollPosition = () => {
 
       if (view === "men" && outfits.length === 0) {
         resetMenOutfitsCache();
+        sessionStorage.removeItem("JourneyMenScroll");
       } else if (view ==="women"){
         resetWomenOutfitsCache();
+        sessionStorage.removeItem("JourneyWomenScroll");
       }
 
       if (view === "men") {
