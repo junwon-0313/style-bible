@@ -167,7 +167,7 @@ docker를 사용하여 로컬에서 실제 서비스와 같은 환경을 구축�
 <td align="center">
         <img width="100%" src="./docs/준원.png"/>
         <div><a href="https://github.com/junwon-0313">이준원</a></div>
-        <div>FE, BA, Modeling</div>
+        <div>FE, DE, Modeling</div>
     </td>
 <td align="center">
         <img width="100%" src="./docs/한정.png"/>
