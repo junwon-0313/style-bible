@@ -8,6 +8,7 @@ import MoveBottom from "../MoveBottom";
 import { useCookies } from "react-cookie";
 import { styleAxios } from "../../utils";
 import ToggleRouter from "../../components/ToggleRouter";
+import CollectionButton from "../../components/CollectionButton"
 
 export function Header() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -62,11 +63,11 @@ export function Footer() {
 
 function Layout({ children, location }) {
     const [isMainlPage, setIsMainPage] = useState(
-        () => location.pathname === "/journey" || location.pathname === "/collections",
+        () => location.pathname === "/journey/men" || location.pathname === "/journey/women",
     );
 
     useEffect(() => {
-        setIsMainPage(location.pathname === "/journey" || location.pathname === "/collections");
+        setIsMainPage(location.pathname === "/journey/men" || location.pathname === "/journey/women");
     }, [location.pathname]);
 
     return (
@@ -78,6 +79,7 @@ function Layout({ children, location }) {
                     <>
                         <MoveBottom />
                         <MoveToTop />
+                        <CollectionButton />
                     </>
                 )}
             </>

@@ -7,7 +7,7 @@ import { notification } from "antd";
 import { ShareAltOutlined } from "@ant-design/icons";
 import { styleAxios } from "../../utils";
 import Information from "../information/information";
-import { HeartFilled, SkinFilled } from '@ant-design/icons';
+import { HeartFilled} from '@ant-design/icons';
 
 const PAGE_SIZE = 10;
 const S = {
@@ -36,31 +36,80 @@ const S = {
         }
     `,
 };
+
 const GridItem = ({ children, index }) => {
     return <S.GridItem key={index}>{children}</S.GridItem>;
 };
+
+// 로컬 스토리지에 journey 상태의 outfits 정보 저장
+const saveJourneyOutfitsToCache = (data) => {
+    localStorage.setItem("journeyOutfitsCache", JSON.stringify(data));
+  };
+
+// 로컬 스토리지에서 journey 상태의 outfits 정보 불러오기
+const getJourneyOutfitsFromCache = () => {
+const cachedOutfits = localStorage.getItem("journeyOutfitsCache");
+return cachedOutfits ? JSON.parse(cachedOutfits) : [];
+};
+
+function resetJourneyOutfitsCache() {
+    localStorage.removeItem("journeyOutfitsCache");
+    window.scrollTo({ top: 0, behavior: "instant" });
+    window.location.reload();
+}
+
 function ImageGridView(props) {
     const gridViewWrapperBottomDomRef = useRef(null);
-    const currentPage = useRef(0);
+    const [currentPage, setCurrentPage] = useState(0);
     const totalPage = useRef(100);
     const [outfits, setOutfits] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isFetchStopped, setIsFetchStopped] = useState(false);
     const navigate = useNavigate(); // useNavigate 훅 사용
+    let clickType;
+    if (props.view === "journey") {
+        clickType = "journey";
+    } else {
+        clickType = "collection";
+    }
+    const [scrollPosition, setScrollPosition] = useState(0);
+    const saveScrollPosition = () => {
+        setScrollPosition(window.scrollY);
+    };
+
+    const restoreScrollPosition = () => {
+        window.scrollTo({ top: scrollPosition, behavior: "smooth" });
+    };
+
+
     const popuptext = props.view === "journey" ? (
         <>
-          <p><HeartFilled className='popheart' />하트를 눌러, 당신의 스타일을 찾아보세요<HeartFilled className='popheart' /></p>
-          <p><SkinFilled className='popmore' />코디를 클릭해, 유사한 코디를 확인하세요<SkinFilled className='popmore' /></p>
+          <p>마음에 드는 코디에 <HeartFilled className='popheart' />하트<HeartFilled className='popheart' />를 눌러보세요!</p>
+          <p>취향이 반영되어 코디가 업데이트됩니다.</p>
         </>
       ) : (
         <>
-          <p><SkinFilled className='popmore' />코디를 클릭해, 유사한 코디를 확인하세요<SkinFilled className='popmore' /></p>
+          <p>코디 이미지를 클릭하면 상세페이지를 볼 수 있어요!</p>
         </>
       );
     const loadingText = props.view === "journey" ? "AI가 당신을 위한 코디를 추천하고 있습니다.." : "Loading...";
     useLayoutEffect(() => {
         totalPage.current = 100;
     }, []);
+
+    useEffect(() => {
+        if (props.view === "journey") {
+          const cachedOutfits = getJourneyOutfitsFromCache();
+          if (cachedOutfits.length > 0) {
+            const newcachedOutfits = [...cachedOutfits];
+            setOutfits(newcachedOutfits);
+            setCurrentPage(Math.floor(cachedOutfits.length / PAGE_SIZE));
+            restoreScrollPosition(); 
+            }
+        }   
+      }, [props.view]);
+
+
     useEffect(() => {
         let observer;
         const gridViewWrapperBottomDom = gridViewWrapperBottomDomRef.current;
@@ -76,7 +125,7 @@ function ImageGridView(props) {
                         entry.isIntersecting &&
                         !isLoading &&
                         !isFetchStopped &&
-                        currentPage.current < totalPage.current
+                        currentPage < totalPage.current
                     ) {
                         fetchData();
                     }
@@ -87,7 +136,7 @@ function ImageGridView(props) {
         return () => {
             observer.disconnect();
         };
-    }, [isLoading]);
+    }, [isLoading, isFetchStopped, currentPage]);
 
     const handleShareClick = (outfit) => {
         const DetailUrl = 'stylesjourney.com/detail/';
@@ -110,34 +159,84 @@ function ImageGridView(props) {
     
     async function fetchData() {
         try {
-            setIsLoading(true); 
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            setIsLoading(true);
+            await new Promise((resolve) => setTimeout(resolve, 500));
             const viewUrl = props.view === "journey" ? "/items/journey" : "/items/collection";
-            const clickType = props.view === "journey" ? "journey" : "collection";
             const viewParams = new URLSearchParams({
                 page_size: PAGE_SIZE.toString(),
-                offset: (currentPage.current * PAGE_SIZE).toString(),
+                offset: (currentPage * PAGE_SIZE).toString(),
             });
             const response = await styleAxios.get(`${viewUrl}?${viewParams.toString()}`);
 
             const { outfits_list: outfitsList, is_last: isLast } = response.data;
-
-            const newData = [...outfits];
+            const newData = [];
             for (let i = 0; i < outfitsList.length; i++) {
                 const single_outfit = outfitsList[i];
-                newData.push(
-                    <GridItem key={currentPage.current * PAGE_SIZE + i}>
+                const newId = currentPage * PAGE_SIZE + i;
+
+                if (!outfits.some((outfit) => outfit.id === newId)) {
+                    newData.push({
+                    id: newId,
+                    img_url: single_outfit.img_url,
+                    is_liked: single_outfit.is_liked,
+                    outfit_id: single_outfit.outfit_id
+                    });
+            } 
+        }
+            console.log('HERE1', outfits,outfits.length);
+            console.log('HERE2', newData,newData.length);
+            if (props.view === "journey" && outfits.length === 0) {
+                resetJourneyOutfitsCache();
+            }
+
+            if (props.view === "journey") {
+                saveJourneyOutfitsToCache([...outfits, ...newData]);
+            }
+
+            setOutfits((prevOutfits) => [...prevOutfits, ...newData]);
+
+            setCurrentPage((prevPage) => prevPage + 1);
+
+            if (isLast) {
+                setIsFetchStopped(true);
+                return;
+            }
+        } catch (error) {
+            console.log(error);
+            if (error.response.request.status === 501) {
+                navigate("/journey/men");
+                notification.warning({
+                    message: "JOURNEY 페이지로 이동합니다.",
+                    description: "먼저, 마음에 드는 코디에 하트를 눌러보세요!",
+                    duration: 3,
+                });
+            }
+        } finally{
+            setIsLoading(false);
+        }
+    } 
+    
+    const goToDetailPage = (front_outfit_id) => {
+        saveScrollPosition();
+        window.scrollTo({ top: 0, behavior: "instant" });
+        navigate(`/detail/${front_outfit_id}`);
+    };
+    return (
+        <div className="custom-wrapper">
+            <S.GridWrapper>
+                {outfits.map((outfit) => (
+                    <GridItem key={outfit.id}>
                         <img
-                            src={single_outfit.img_url}
-                            alt={currentPage.current * PAGE_SIZE + i}
+                            src={outfit.img_url}
+                            alt={outfit.id}
                             onError={(e) => {
                                 e.target.onerror = null;
                                 e.target.src =
                                     "https://codidatabucket.s3.ap-northeast-2.amazonaws.com/img/subimage/loading.jpg";
                             }}
                             onClick={() => {
-                                goToDetailPage(single_outfit.outfit_id);
-                                styleAxios.post(`/items/journey/${single_outfit.outfit_id}/click/${clickType}`).catch((error) => {
+                                goToDetailPage(outfit.outfit_id);
+                                styleAxios.post(`/items/journey/${outfit.outfit_id}/click/${clickType}`).catch((error) => {
                                     console.error(error);
                                 });
                             }}
@@ -153,54 +252,25 @@ function ImageGridView(props) {
                             <ShareAltOutlined
                                 className="journey-share"
                                 style={{ fontSize: "25px", marginRight: "12px", marginBottom:"10px" }}
-                                onClick={() => handleShareClick(single_outfit.outfit_id)}
+                                onClick={() => handleShareClick(outfit.outfit_id)}
                             />
                             <div style={{ display: "flex", alignItems: "center" }}>
                                 <HeartButton
-                                className="heart-button"
-                                outfitId={single_outfit.outfit_id}
-                                likeState={single_outfit.is_liked}
-                                likeType="journey"
+                                    className="heart-button"
+                                    outfitId={outfit.outfit_id}
+                                    likeState={outfit.is_liked}
+                                    likeType="journey"
                                 />
                             </div>
-
                         </div>
-
-                    </GridItem>,
-                );
-            }
-            setOutfits(newData);
-            currentPage.current += 1;
-
-            if (isLast) {
-                setIsFetchStopped(true);
-                return;
-            }
-        } catch (error) {
-            console.log(error);
-            if (error.response.request.status === 501) {
-                navigate("/journey");
-                notification.warning({
-                    message: "JOURNEY 페이지로 이동합니다.",
-                    description: "먼저, 마음에 드는 코디에 하트를 눌러보세요!",
-                    duration: 3,
-                });
-            }
-        } finally{
-            setIsLoading(false);
-        }
-    }
-    const goToDetailPage = (front_outfit_id) => {
-        window.scrollTo({ top: 0, behavior: "instant" });
-        navigate(`/detail/${front_outfit_id}`);
-    };
-    return (
-        <div className="custom-wrapper">
-            <S.GridWrapper>{outfits}</S.GridWrapper>
-            {currentPage.current > 0 && isLoading && <Skeleton text = {loadingText} />}
+                    </GridItem>
+                ))}
+            </S.GridWrapper>
+            {currentPage > 0 && isLoading && <Skeleton text = {loadingText} />}
             <div ref={gridViewWrapperBottomDomRef} />
-            <Information text= {popuptext} />
+            {/* <Information text= {popuptext} /> */}
         </div>
     );
+    
 }
 export default ImageGridView;

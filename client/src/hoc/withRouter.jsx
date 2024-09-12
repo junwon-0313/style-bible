@@ -19,12 +19,8 @@ function withRouter(Component) {
         let params = useParams();
 
         useEffect(() => {
-            window.scrollTo({ top: 0, behavior: "instant" });
-        }, [location.pathname]);
-
-        useEffect(() => {
             if (isLoggedIn && location.pathname === "/") {
-                navigate("/journey", { replace: true });
+                navigate("/journey/men", { replace: true });
                 setIsLoggedIn(false);
                 notification.warning({
                     message: "로그인되어 있습니다!",
